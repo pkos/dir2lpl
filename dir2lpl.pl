@@ -16,7 +16,7 @@ my $system = "";
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "dir2lpl v0.6 - Generate RetroArch playlists from a directory scan. \n";
+    print "dir2lpl v0.7 - Generate RetroArch playlists from a directory scan. \n";
 	print "\n";
 	print "with dir2lpl [ options ] [directory ...] [system]";
     print "\n";
@@ -123,11 +123,15 @@ foreach my $element (@linesf) {
   #check parameter rom files outside zip
   if ($listname eq "ROM" and substr($gamefile, -4) !~ '.zip') {
     #calculate CRC of rom file
-	my $crcfilename = "$gamepath" . "\\" . "$gamefile";
-	open (my $fh, '<:raw', $crcfilename) or die $!;
-    $ctx->addfile(*$fh);
-    close $fh;
-    $crc = $ctx->hexdigest;
+	if (substr($gamefile, -4) eq '.chd' or substr($gamefile, -4) eq '.gcz') {
+	  $crc = "00000000";
+	} else {
+	  my $crcfilename = "$gamepath" . "\\" . "$gamefile";
+	  open (my $fh, '<:raw', $crcfilename) or die $!;
+      $ctx->addfile(*$fh);
+      close $fh;
+      $crc = $ctx->hexdigest;
+	}
 	if ($relative eq "FALSE") {
       $path = '      "path": ' . '"' . "$gamepath/" . "$gamefile" . '",';
     }
@@ -161,6 +165,7 @@ foreach my $element (@linesf) {
 	   my @files = $zip->memberNames();  # Lists all members in archive
        if (scalar @files >= 2) {
 	        print "More than one file in archive.. exit\n";
+			print "$zipfile\n";
 	        print "\n";
 	        exit;
 	   }
