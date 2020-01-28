@@ -16,7 +16,7 @@ my $system = "";
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "dir2lpl v0.7 - Generate RetroArch playlists from a directory scan. \n";
+    print "dir2lpl v0.8 - Generate RetroArch playlists from a directory scan. \n";
 	print "\n";
 	print "with dir2lpl [ options ] [directory ...] [system]";
     print "\n";
@@ -121,9 +121,9 @@ foreach my $element (@linesf) {
   $gamefile = $element;
   $gamepath = $dirname;
   #check parameter rom files outside zip
-  if ($listname eq "ROM" and substr($gamefile, -4) !~ '.zip') {
+  if ($listname eq "ROM" and lc substr($gamefile, -4) !~ '.zip') {
     #calculate CRC of rom file
-	if (substr($gamefile, -4) eq '.chd' or substr($gamefile, -4) eq '.gcz') {
+	if (lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz') {
 	  $crc = "00000000";
 	} else {
 	  my $crcfilename = "$gamepath" . "\\" . "$gamefile";

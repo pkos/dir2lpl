@@ -1,4 +1,4 @@
-dir2lpl v0.7 - Generate RetroArch playlists from a directory scan.
+dir2lpl v0.8 - Generate RetroArch playlists from a directory scan.
 
 with dir2lpl [ options ] [directory ...] [system]
 Options:
