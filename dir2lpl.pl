@@ -16,7 +16,7 @@ my $system = "";
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "dir2lpl v0.8 - Generate RetroArch playlists from a directory scan. \n";
+    print "dir2lpl v0.9 - Generate RetroArch playlists from a directory scan. \n";
 	print "\n";
 	print "with dir2lpl [ options ] [directory ...] [system]";
     print "\n";
@@ -27,9 +27,9 @@ foreach my $argument (@ARGV) {
 	print "        or a single rom filename inside the zip files\n";
     print "\n";
 	print "Notes:\n";
-	print "  [-rom]      calculates the crc32 values of each rom and larger files process longer\n";
-	print "  [-zip]      reads the crc32 from the zip file header and is quicker\n";
-	print "  [directory] should be the path to the games folder and contain backslash symbols\n";
+	print "  [-rom]      calculates the crc32 values of each rom, cso, chd and iso are skipped\n";
+	print "  [-zip]      reads the crc32 from the zip file header\n";
+	print "  [directory] should be the path to the games folder\n";
 	print "  [system]    must match a RetroArch database to properly configure system icons\n";
 	print "\n";
 	print "Example:\n";
@@ -57,7 +57,7 @@ if (scalar(@ARGV) < 2 or scalar(@ARGV) > 4) {
 }
 $directory = $ARGV[-2];
 $system = $ARGV[-1];
-
+$directory =~ s/\\/\//g; 
 #debug
 print "relative path: $relative\n";
 print "game names from: $listname\n";
@@ -80,7 +80,11 @@ my $playlist = "$system" . ".lpl";
 my $dirname = $directory;
 opendir(DIR, $dirname) or die "Could not open $dirname\n";
 while (my $filename = readdir(DIR)) {
-  push(@linesf, $filename) unless $filename eq '.' or $filename eq '..';
+  if (-d $filename) {
+    next;
+  } else {
+    push(@linesf, $filename) unless $filename eq '.' or $filename eq '..';
+  }
 }
 closedir(DIR);
 
@@ -123,14 +127,14 @@ foreach my $element (@linesf) {
   #check parameter rom files outside zip
   if ($listname eq "ROM" and lc substr($gamefile, -4) !~ '.zip') {
     #calculate CRC of rom file
-	if (lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz') {
+	if (lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
 	  $crc = "00000000";
 	} else {
 	  my $crcfilename = "$gamepath" . "\\" . "$gamefile";
 	  open (my $fh, '<:raw', $crcfilename) or die $!;
       $ctx->addfile(*$fh);
       close $fh;
-      $crc = $ctx->hexdigest;
+      $crc = uc $ctx->hexdigest;
 	}
 	if ($relative eq "FALSE") {
       $path = '      "path": ' . '"' . "$gamepath/" . "$gamefile" . '",';
@@ -175,10 +179,10 @@ foreach my $element (@linesf) {
 	        my $fh = IO::File->new_tmpfile or die "Unable to create temp file: $!\n";
             $fh->binmode;
             seek( $fh, 0, 0 );
-            $crc = $zfile->crc32String();
+            $crc = uc $zfile->crc32String();
        }
 
-       $romcrc = $crc;
+       $romcrc = uc $crc;
        my $zipfile = "$gamepath" . '/' . "$gamefile";
        if ($relative eq "FALSE") {
             $path = '      "path": ' . '"' . "$zipfile" . "#" . "$romname" . '",';
@@ -220,10 +224,10 @@ foreach my $element (@linesf) {
 	        my $fh = IO::File->new_tmpfile or die "Unable to create temp file: $!\n";
             $fh->binmode;
             seek( $fh, 0, 0 );
-            $crc = $zfile->crc32String();
+            $crc = uc $zfile->crc32String();
        }
   
-       $romcrc = $crc;
+       $romcrc = uc $crc;
        if ($relative eq "FALSE") {
             $path = '      "path": ' . '"' . "$zipfile" . "#" . "$romname" . '",';
        } else {
