@@ -6,17 +6,20 @@ use Term::ProgressBar;
 
 #init
 my $relative = "FALSE";
+my $extensions = "FALSE";
 my $substring = "-p";
 my $substringh = "-h";
 my $substringr = "-rom";
+my $substringe = "-ext=";
 my $listname = "ZIP";
 my $directory = "";
 my $system = "";
+my @extlist;
 
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "dir2lpl v0.9 - Generate RetroArch playlists from a directory scan. \n";
+    print "dir2lpl v1.0 - Generate RetroArch playlists from a directory scan. \n";
 	print "\n";
 	print "with dir2lpl [ options ] [directory ...] [system]";
     print "\n";
@@ -24,7 +27,9 @@ foreach my $argument (@ARGV) {
 	print "  -p    write relative path instead of exact drive letter in playlist\n";
 	print "  -zip  build the games playlist from the zip filename (default)\n";
 	print "  -rom  build the games playlist from the unzipped rom filenames\n";
-	print "        or a single rom filename inside the zip files\n";
+	print "        or a single rom filename inside the zip files, overridden by chosen extenstions\n";
+	print "  -ext=[comma separated list] will only include the files with the chosen\n";
+	print "        extensions for the playlist file\n";
     print "\n";
 	print "Notes:\n";
 	print "  [-rom]      calculates the crc32 values of each rom, cso, chd and iso are skipped\n";
@@ -33,7 +38,7 @@ foreach my $argument (@ARGV) {
 	print "  [system]    must match a RetroArch database to properly configure system icons\n";
 	print "\n";
 	print "Example:\n";
-	print '              dir2lpl -p -rom "D:/ROMS/Atari - 2600" "Atari - 2600"' . "\n";
+	print '              dir2lpl -p -rom -ext=bin,a26 "D:/ROMS/Atari - 2600" "Atari - 2600"' . "\n";
 	print "\n";
 	print "Author:\n";
 	print "   Discord - Romeo#3620\n";
@@ -43,13 +48,18 @@ foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substring\E/) {
     $relative = "TRUE";
   }
-    if ($argument =~ /\Q$substringr\E/) {
+  if ($argument =~ /\Q$substringr\E/) {
     $listname = "ROM";
+  }
+  if ($argument =~ /\Q$substringe\E/) {
+    $extensions = "TRUE";
+	my @exttemp = split("=", $argument);
+	@extlist = split(",", $exttemp[-1]);
   }
 }
 
-#set directory and system variables
-if (scalar(@ARGV) < 2 or scalar(@ARGV) > 4) {
+#set directory, system, and extension variables
+if (scalar(@ARGV) < 2 or scalar(@ARGV) > 5) {
   print "Invalid command line.. exit\n";
   print "use: dir2lpl -h\n";
   print "\n";
@@ -61,6 +71,11 @@ $directory =~ s/\\/\//g;
 #debug
 print "relative path: $relative\n";
 print "game names from: $listname\n";
+if (scalar @extlist > 0) {
+  print "extensions: @extlist\n"; 
+} else {
+  print "extensions: $extensions (all files)\n";  
+}
 print "directory: $directory\n";
 print "system: $system\n";
 
@@ -84,6 +99,7 @@ while (my $filename = readdir(DIR)) {
     next;
   } else {
     push(@linesf, $filename) unless $filename eq '.' or $filename eq '..';
+    #print "$filename\n";    
   }
 }
 closedir(DIR);
@@ -118,140 +134,293 @@ my $max = scalar(@linesf);
 my $progress = Term::ProgressBar->new({name => 'progress', count => $max});
 my $crc;
 my $romcrc;
+my $extpos;
+my $extlen;
 
 #print each game from @lines to playlist file
 foreach my $element (@linesf) {
   $progress->update($_);
   $gamefile = $element;
   $gamepath = $dirname;
-  #check parameter rom files outside zip
+  #rom files outside zip
   if ($listname eq "ROM" and lc substr($gamefile, -4) !~ '.zip') {
-    #calculate CRC of rom file
-	if (lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
-	  $crc = "00000000";
-	} else {
-	  my $crcfilename = "$gamepath" . "\\" . "$gamefile";
-	  open (my $fh, '<:raw', $crcfilename) or die $!;
-      $ctx->addfile(*$fh);
-      close $fh;
-      $crc = uc $ctx->hexdigest;
+    #rom files outside zip
+	#when no extensions are included write the rom to playlist
+	if ($extensions eq "FALSE") {	 
+      #calculate CRC of rom file
+	  if (lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
+	    $crc = "00000000";
+	  } else {
+	    my $crcfilename = "$gamepath" . "\\" . "$gamefile";
+	    open (my $fh, '<:raw', $crcfilename) or die $!;
+        $ctx->addfile(*$fh);
+        close $fh;
+        $crc = uc $ctx->hexdigest;
+	  }	
+	  
+	  if ($relative eq "FALSE") {
+        $path = '      "path": ' . '"' . "$gamepath/" . "$gamefile" . '",';
+      } else {
+        $path = '      "path": ' . '"..' . substr($gamepath,2,length($gamepath),"") .  "/" . "$gamefile" . '",';
+      }
+	  $extpos = rindex $gamefile, ".";  
+	  $extlen = length(substr($gamefile, $extpos));
+	  $extlen = -$extlen;
+      my $name = substr $gamefile, 0, $extlen;
+      my $label = '      "label": "' . "$name" . '"' . ',';
+      my $core_path = '      "core_path": "DETECT",';
+      my $core_name = '      "core_name": "DETECT",';
+      my $crc32 = '      "crc32": "' . "$crc" . '|crc"' . ',';
+      my $db_name = '      "db_name": "' . "$system" . '.rdb"';
+      print FILE "    {\n";
+      print FILE "$path\n";
+      print FILE "$label\n";
+      print FILE "$core_path\n";
+      print FILE "$core_name\n";
+      print FILE "$crc32\n";
+      print FILE "$db_name\n";
+      if ($element eq $endoflist){
+        print FILE "    }\n";
+      } else {
+        print FILE "    },\n";
+      }
+    #rom files outside zip
+	#when extensions are included loop through extensions to choose what roms are written to playlist
+	} elsif ($extensions eq "TRUE") {
+	   foreach my $extcheck (@extlist) {
+	   $extpos = rindex $gamefile, ".";  
+	   $extlen = length(substr($gamefile, $extpos));
+	   $extlen = -$extlen;
+	   #look for a match in the extensions list to the rom file extension and if true write to playlist
+	   if (lc substr($gamefile, $extlen + 1) eq lc $extcheck) {
+		 $romname = $gamefile;
+         #calculate CRC of rom file
+	     if (lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
+	       $crc = "00000000";
+	     } else {
+	       my $crcfilename = "$gamepath" . "\\" . "$gamefile";
+	       open (my $fh, '<:raw', $crcfilename) or die $!;
+           $ctx->addfile(*$fh);
+           close $fh;
+           $crc = uc $ctx->hexdigest;
+	     }	
+         $romcrc = uc $crc;
+    	  if ($relative eq "FALSE") {
+            $path = '      "path": ' . '"' . "$gamepath/" . "$gamefile" . '",';
+          } else {
+            $path = '      "path": ' . '"..' . substr($gamepath,2,length($gamepath),"") .  "/" . "$gamefile" . '",';
+          }
+	      $extpos = rindex $gamefile, ".";  
+	      $extlen = length(substr($gamefile, $extpos));
+	      $extlen = -$extlen;
+          my $name = substr $gamefile, 0, $extlen;
+          my $label = '      "label": "' . "$name" . '"' . ',';
+          my $core_path = '      "core_path": "DETECT",';
+          my $core_name = '      "core_name": "DETECT",';
+          my $crc32 = '      "crc32": "' . "$crc" . '|crc"' . ',';
+          my $db_name = '      "db_name": "' . "$system" . '.rdb"';
+          print FILE "    {\n";
+          print FILE "$path\n";
+          print FILE "$label\n";
+          print FILE "$core_path\n";
+          print FILE "$core_name\n";
+          print FILE "$crc32\n";
+          print FILE "$db_name\n";
+          if ($element eq $endoflist){
+            print FILE "    }\n";
+          } else {
+            print FILE "    },\n";
+          }
+        }  
+	  }
 	}
-	if ($relative eq "FALSE") {
-      $path = '      "path": ' . '"' . "$gamepath/" . "$gamefile" . '",';
-    }
-    else {
-      $path = '      "path": ' . '"..' . substr($gamepath,2,length($gamepath),"") .  "/" . "$gamefile" . '",';
-    }
-    my $name = substr $gamefile, 0, -4;
-    my $label = '      "label": "' . "$name" . '"' . ',';
-    my $core_path = '      "core_path": "DETECT",';
-    my $core_name = '      "core_name": "DETECT",';
-    my $crc32 = '      "crc32": "' . "$crc" . '|crc"' . ',';
-    my $db_name = '      "db_name": "' . "$system" . '.rdb"';
-    print FILE "    {\n";
-    print FILE "$path\n";
-    print FILE "$label\n";
-    print FILE "$core_path\n";
-    print FILE "$core_name\n";
-    print FILE "$crc32\n";
-    print FILE "$db_name\n";
-    if ($element eq $endoflist){
-      print FILE "    }\n";
-    } else {
-      print FILE "    },\n";
-    }
-  #check paramter zip name and rom files inside zip
+
+
+	
+  #zip name and rom files inside zip
   } elsif ($listname eq "ZIP" and substr($gamefile, -4) eq '.zip') {
 	   $zipfile = "$gamepath" . '/' . "$gamefile";
 	   #print "$zipfile\n";
        my $zip = Archive::Zip->new();
        $zip->read($zipfile);
 	   my @files = $zip->memberNames();  # Lists all members in archive
-       if (scalar @files >= 2) {
-	        print "More than one file in archive.. exit\n";
-			print "$zipfile\n";
-	        print "\n";
-	        exit;
+       
+	   #loop through files in archive
+	   foreach my $romfilename (@files) {
+	     #zip name and rom files inside zip
+		 #when no extensions are included make sure only 1 file in zip
+		 if ($extensions eq "FALSE") {	   
+	       if (scalar @files >= 2) {
+	         print "\nMore than one file in archive.. exit\n";
+			 print "$zipfile\n";
+	         print "\n";
+	         exit;
+		   } else {
+		     $romname = $romfilename;
+			 my $zfile = $zip->memberNamed($romfilename);
+             $crc = uc $zfile->crc32String();
+             $romcrc = uc $crc;
+             if ($relative eq "FALSE") {
+               $path = '      "path": ' . '"' . "$zipfile" . "#" . "$romname" . '",';
+             } else {
+                $path = '      "path": ' . '"..' . substr($zipfile,2,length($zipfile),"") . "#" . "$romname" . '",';
+             }
+			 my $name = substr $gamefile, 0, -4;
+             my $label = '      "label": "' . "$name" . '"' . ',';
+             my $core_path = '      "core_path": "DETECT",';
+             my $core_name = '      "core_name": "DETECT",';
+             my $crc32 = '      "crc32": "' . "$romcrc" . '|crc"' . ',';
+	         my $db_name = '      "db_name": "' . "$system" . '.rdb"';
+             print FILE "    {\n";
+             print FILE "$path\n";
+             print FILE "$label\n";
+             print FILE "$core_path\n";
+             print FILE "$core_name\n";
+             print FILE "$crc32\n";
+             print FILE "$db_name\n";
+             if ($element eq $endoflist){
+               print FILE "    }\n";
+             } else {
+               print FILE "    },\n";
+             }
+			 next;
+		   }
+		 #zip name and rom files inside zip
+		 #when extensions are included loop through extensions to choose what is written to playlist
+	     } elsif ($extensions eq "TRUE") {
+	       foreach my $extcheck (@extlist) {
+	         $extpos = rindex $romfilename, ".";  
+		     $extlen = length(substr($romfilename, $extpos));
+			 $extlen = -$extlen;
+		     #look for a match in the extensions list to the rom file extension and if true write to playlist
+			 if (lc substr($romfilename, $extlen + 1) eq lc $extcheck) {
+		       $romname = $romfilename;
+			   my $zfile = $zip->memberNamed($romfilename);
+               $crc = uc $zfile->crc32String();
+               $romcrc = uc $crc;
+               my $zipfile = "$gamepath" . '/' . "$gamefile";
+               if ($relative eq "FALSE") {
+                 $path = '      "path": ' . '"' . "$zipfile" . "#" . "$romname" . '",';
+               } else {
+                  $path = '      "path": ' . '"..' . substr($zipfile,2,length($zipfile),"") . "#" . "$romname" . '",';
+               }
+			   my $name = substr $gamefile, 0, -4;
+               my $label = '      "label": "' . "$name" . '"' . ',';
+               my $core_path = '      "core_path": "DETECT",';
+               my $core_name = '      "core_name": "DETECT",';
+               my $crc32 = '      "crc32": "' . "$romcrc" . '|crc"' . ',';
+	           my $db_name = '      "db_name": "' . "$system" . '.rdb"';
+               print FILE "    {\n";
+               print FILE "$path\n";
+               print FILE "$label\n";
+               print FILE "$core_path\n";
+               print FILE "$core_name\n";
+               print FILE "$crc32\n";
+               print FILE "$db_name\n";
+               if ($element eq $endoflist){
+                 print FILE "    }\n";
+               } else {
+                 print FILE "    },\n";
+               }
+			 }
+		   }
+	     }  
 	   }
-	
-	   $romname = $files[0];
-	   for my $zfile ($zip->members) {
-	        my $fh = IO::File->new_tmpfile or die "Unable to create temp file: $!\n";
-            $fh->binmode;
-            seek( $fh, 0, 0 );
-            $crc = uc $zfile->crc32String();
-       }
-
-       $romcrc = uc $crc;
-       my $zipfile = "$gamepath" . '/' . "$gamefile";
-       if ($relative eq "FALSE") {
-            $path = '      "path": ' . '"' . "$zipfile" . "#" . "$romname" . '",';
-       } else {
-            $path = '      "path": ' . '"..' . substr($zipfile,2,length($zipfile),"") . "#" . "$romname" . '",';
-       }
-       my $name = substr $gamefile, 0, -4;
-       my $label = '      "label": "' . "$name" . '"' . ',';
-       my $core_path = '      "core_path": "DETECT",';
-       my $core_name = '      "core_name": "DETECT",';
-       my $crc32 = '      "crc32": "' . "$romcrc" . '|crc"' . ',';
-	   my $db_name = '      "db_name": "' . "$system" . '.rdb"';
-       print FILE "    {\n";
-       print FILE "$path\n";
-       print FILE "$label\n";
-       print FILE "$core_path\n";
-       print FILE "$core_name\n";
-       print FILE "$crc32\n";
-       print FILE "$db_name\n";
-       if ($element eq $endoflist){
-              print FILE "    }\n";
-       } else {
-              print FILE "    },\n";
-       }
-  #check parameter rom name and rom files inside zip
+	   
+	   
+	   
+	   
+	   
+  #rom name and rom files inside zip
   } elsif ($listname eq "ROM" and substr($gamefile, -4) eq '.zip') {
        $zipfile = "$gamepath" . '/' . "$gamefile";
+	   #print "$zipfile\n";
        my $zip = Archive::Zip->new();
        $zip->read($zipfile);
 	   my @files = $zip->memberNames();  # Lists all members in archive
-       if (scalar @files >= 2) {
-	        print "More than one file in archive.. exit\n";
-	        print "\n";
-	        exit;
-	   }
-	
-	   $romname = $files[0];
-	   for my $zfile ($zip->members) {
-	        my $fh = IO::File->new_tmpfile or die "Unable to create temp file: $!\n";
-            $fh->binmode;
-            seek( $fh, 0, 0 );
-            $crc = uc $zfile->crc32String();
-       }
-  
-       $romcrc = uc $crc;
-       if ($relative eq "FALSE") {
-            $path = '      "path": ' . '"' . "$zipfile" . "#" . "$romname" . '",';
-       } else {
-            $path = '      "path": ' . '"..' . substr($zipfile,2,length($zipfile),"") . "#" . "$romname" . '",';
-       }
-       my $name = substr $romname, 0, -4;
-       my $label = '      "label": "' . "$name" . '"' . ',';
-       my $core_path = '      "core_path": "DETECT",';
-       my $core_name = '      "core_name": "DETECT",';
-       my $crc32 = '      "crc32": "' . "$romcrc" . '|crc"' . ',';
-	   my $db_name = '      "db_name": "' . "$system" . '.rdb"';
-       print FILE "    {\n";
-       print FILE "$path\n";
-       print FILE "$label\n";
-       print FILE "$core_path\n";
-       print FILE "$core_name\n";
-       print FILE "$crc32\n";
-       print FILE "$db_name\n";
-       if ($element eq $endoflist){
-              print FILE "    }\n";
-       } else {
-              print FILE "    },\n";
-       }
-  }  
+	   
+	   #loop through files in archive
+	   foreach my $romfilename (@files) {
+	     #rom name and rom files inside zip
+		 #when no extensions are included make sure only 1 file in zip
+		 if ($extensions eq "FALSE") {	   
+	       if (scalar @files >= 2) {
+	         print "\nMore than one file in archive.. exit\n";
+			 print "$zipfile\n";
+	         print "\n";
+	         exit;
+		   } else {
+		     $romname = $romfilename;
+			 my $zfile = $zip->memberNamed($romfilename);
+             $crc = uc $zfile->crc32String();
+             $romcrc = uc $crc;
+             if ($relative eq "FALSE") {
+               $path = '      "path": ' . '"' . "$zipfile" . "#" . "$romname" . '",';
+             } else {
+                $path = '      "path": ' . '"..' . substr($zipfile,2,length($zipfile),"") . "#" . "$romname" . '",';
+             }
+			 my $name = substr $romname, $extlen;
+             my $label = '      "label": "' . "$name" . '"' . ',';
+             my $core_path = '      "core_path": "DETECT",';
+             my $core_name = '      "core_name": "DETECT",';
+             my $crc32 = '      "crc32": "' . "$romcrc" . '|crc"' . ',';
+	         my $db_name = '      "db_name": "' . "$system" . '.rdb"';
+             print FILE "    {\n";
+             print FILE "$path\n";
+             print FILE "$label\n";
+             print FILE "$core_path\n";
+             print FILE "$core_name\n";
+             print FILE "$crc32\n";
+             print FILE "$db_name\n";
+             if ($element eq $endoflist){
+               print FILE "    }\n";
+             } else {
+               print FILE "    },\n";
+             }
+			 next;
+		   }
+		 #rom name and rom files inside zip
+		 #when extensions are included loop through extensions to choose what is written to playlist
+	     } elsif ($extensions eq "TRUE") {
+	       foreach my $extcheck (@extlist) {
+	         $extpos = rindex $romfilename, ".";  
+		     $extlen = length(substr($romfilename, $extpos));
+			 $extlen = -$extlen;
+		     #look for a match in the extensions list to the rom file extension and if true write to playlist
+			 if (lc substr($romfilename, $extlen + 1) eq lc $extcheck) {
+		       $romname = $romfilename;
+			   my $zfile = $zip->memberNamed($romfilename);
+               $crc = uc $zfile->crc32String();
+               $romcrc = uc $crc;
+               my $zipfile = "$gamepath" . '/' . "$gamefile";
+               if ($relative eq "FALSE") {
+                 $path = '      "path": ' . '"' . "$zipfile" . "#" . "$romname" . '",';
+               } else {
+                  $path = '      "path": ' . '"..' . substr($zipfile,2,length($zipfile),"") . "#" . "$romname" . '",';
+               }
+			   my $name = substr($romname, 0, $extlen);
+               my $label = '      "label": "' . "$name" . '"' . ',';
+               my $core_path = '      "core_path": "DETECT",';
+               my $core_name = '      "core_name": "DETECT",';
+               my $crc32 = '      "crc32": "' . "$romcrc" . '|crc"' . ',';
+	           my $db_name = '      "db_name": "' . "$system" . '.rdb"';
+               print FILE "    {\n";
+               print FILE "$path\n";
+               print FILE "$label\n";
+               print FILE "$core_path\n";
+               print FILE "$core_name\n";
+               print FILE "$crc32\n";
+               print FILE "$db_name\n";
+               if ($element eq $endoflist){
+                 print FILE "    }\n";
+               } else {
+                 print FILE "    },\n";
+               }
+			 }
+		   }
+	     }
+      }  
+  }    
 }
 
 #write the end of the playlist
