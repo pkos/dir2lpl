@@ -1,4 +1,4 @@
-dir2lpl v1.0 - Generate RetroArch playlists from a directory scan.
+dir2lpl v1.1 - Generate RetroArch playlists from a directory scan.
 
 with dir2lpl [ options ] [directory ...] [system]
 Options:
@@ -10,7 +10,7 @@ Options:
         extensions for the playlist file
 
 Notes:
-  [-rom]      calculates the crc32 values of each rom, cso, chd and iso are skipped
+  [-rom]      calculates the crc32 values of each rom, cso, chd, wbfs and iso are skipped
   [-zip]      reads the crc32 from the zip file header
   [directory] should be the path to the games folder
   [system]    must match a RetroArch database to properly configure system icons
@@ -20,4 +20,3 @@ Example:
 
 Author:
    Discord - Romeo#3620
-   

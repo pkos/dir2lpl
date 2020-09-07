@@ -19,7 +19,7 @@ my @extlist;
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "dir2lpl v1.0 - Generate RetroArch playlists from a directory scan. \n";
+    print "dir2lpl v1.1 - Generate RetroArch playlists from a directory scan. \n";
 	print "\n";
 	print "with dir2lpl [ options ] [directory ...] [system]";
     print "\n";
@@ -32,7 +32,7 @@ foreach my $argument (@ARGV) {
 	print "        extensions for the playlist file\n";
     print "\n";
 	print "Notes:\n";
-	print "  [-rom]      calculates the crc32 values of each rom, cso, chd and iso are skipped\n";
+	print "  [-rom]      calculates the crc32 values of each rom, cso, chd, wbfs and iso are skipped\n";
 	print "  [-zip]      reads the crc32 from the zip file header\n";
 	print "  [directory] should be the path to the games folder\n";
 	print "  [system]    must match a RetroArch database to properly configure system icons\n";
@@ -148,10 +148,13 @@ foreach my $element (@linesf) {
 	#when no extensions are included write the rom to playlist
 	if ($extensions eq "FALSE") {	 
       #calculate CRC of rom file
-	  if (lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
+	  if (lc substr($gamefile, -5) eq '.wbfs' or lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
 	    $crc = "00000000";
 	  } else {
 	    my $crcfilename = "$gamepath" . "\\" . "$gamefile";
+            if (-d $crcfilename) {
+              next;
+            }
 	    open (my $fh, '<:raw', $crcfilename) or die $!;
         $ctx->addfile(*$fh);
         close $fh;
@@ -195,10 +198,13 @@ foreach my $element (@linesf) {
 	   if (lc substr($gamefile, $extlen + 1) eq lc $extcheck) {
 		 $romname = $gamefile;
          #calculate CRC of rom file
-	     if (lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
+	     if (lc substr($gamefile, -5) eq '.wbfs' or lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
 	       $crc = "00000000";
 	     } else {
 	       my $crcfilename = "$gamepath" . "\\" . "$gamefile";
+               if (-d $crcfilename) {
+                 next;
+               }
 	       open (my $fh, '<:raw', $crcfilename) or die $!;
            $ctx->addfile(*$fh);
            close $fh;
@@ -210,9 +216,9 @@ foreach my $element (@linesf) {
           } else {
             $path = '      "path": ' . '"..' . substr($gamepath,2,length($gamepath),"") .  "/" . "$gamefile" . '",';
           }
-	      $extpos = rindex $gamefile, ".";  
-	      $extlen = length(substr($gamefile, $extpos));
-	      $extlen = -$extlen;
+          $extpos = rindex $gamefile, ".";
+          $extlen = length(substr($gamefile, $extpos));
+          $extlen = -$extlen;
           my $name = substr $gamefile, 0, $extlen;
           my $label = '      "label": "' . "$name" . '"' . ',';
           my $core_path = '      "core_path": "DETECT",';
@@ -359,7 +365,10 @@ foreach my $element (@linesf) {
              } else {
                 $path = '      "path": ' . '"..' . substr($zipfile,2,length($zipfile),"") . "#" . "$romname" . '",';
              }
-			 my $name = substr $romname, $extlen;
+             $extpos = rindex $romname, ".";
+             $extlen = length(substr($romname, $extpos));
+             $extlen = -$extlen;
+             my $name = substr $romname, 0, $extlen;
              my $label = '      "label": "' . "$name" . '"' . ',';
              my $core_path = '      "core_path": "DETECT",';
              my $core_name = '      "core_name": "DETECT",';
@@ -398,7 +407,10 @@ foreach my $element (@linesf) {
                } else {
                   $path = '      "path": ' . '"..' . substr($zipfile,2,length($zipfile),"") . "#" . "$romname" . '",';
                }
-			   my $name = substr($romname, 0, $extlen);
+               $extpos = rindex $romname, ".";
+               $extlen = length(substr($romname, $extpos));
+               $extlen = -$extlen;
+               my $name = substr $romname, 0, $extlen;
                my $label = '      "label": "' . "$name" . '"' . ',';
                my $core_path = '      "core_path": "DETECT",';
                my $core_name = '      "core_name": "DETECT",';
