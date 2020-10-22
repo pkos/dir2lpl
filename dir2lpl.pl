@@ -19,7 +19,7 @@ my @extlist;
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "dir2lpl v1.1 - Generate RetroArch playlists from a directory scan. \n";
+    print "dir2lpl v1.2 - Generate RetroArch playlists from a directory scan. \n";
 	print "\n";
 	print "with dir2lpl [ options ] [directory ...] [system]";
     print "\n";
@@ -32,7 +32,7 @@ foreach my $argument (@ARGV) {
 	print "        extensions for the playlist file\n";
     print "\n";
 	print "Notes:\n";
-	print "  [-rom]      calculates the crc32 values of each rom, cso, chd, wbfs and iso are skipped\n";
+	print "  [-rom]      calculates the crc32 values of each rom: gcz, cso, chd, wbfs and iso are skipped\n";
 	print "  [-zip]      reads the crc32 from the zip file header\n";
 	print "  [directory] should be the path to the games folder\n";
 	print "  [system]    must match a RetroArch database to properly configure system icons\n";
@@ -95,7 +95,7 @@ my $playlist = "$system" . ".lpl";
 my $dirname = $directory;
 opendir(DIR, $dirname) or die "Could not open $dirname\n";
 while (my $filename = readdir(DIR)) {
-  if (-d $filename) {
+  if (-d $dirname . "/" . $filename) {
     next;
   } else {
     push(@linesf, $filename) unless $filename eq '.' or $filename eq '..';
@@ -148,7 +148,7 @@ foreach my $element (@linesf) {
 	#when no extensions are included write the rom to playlist
 	if ($extensions eq "FALSE") {	 
       #calculate CRC of rom file
-	  if (lc substr($gamefile, -5) eq '.wbfs' or lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
+	  if (lc substr($gamefile, -5) eq '.wbfs' or lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso' or lc substr($gamefile, -4) eq '.iso') {
 	    $crc = "00000000";
 	  } else {
 	    my $crcfilename = "$gamepath" . "\\" . "$gamefile";
@@ -198,7 +198,7 @@ foreach my $element (@linesf) {
 	   if (lc substr($gamefile, $extlen + 1) eq lc $extcheck) {
 		 $romname = $gamefile;
          #calculate CRC of rom file
-	     if (lc substr($gamefile, -5) eq '.wbfs' or lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso') {
+	     if (lc substr($gamefile, -5) eq '.wbfs' or lc substr($gamefile, -4) eq '.chd' or lc substr($gamefile, -4) eq '.gcz' or lc substr($gamefile, -4) eq '.cso' or lc substr($gamefile, -4) eq '.iso') {
 	       $crc = "00000000";
 	     } else {
 	       my $crcfilename = "$gamepath" . "\\" . "$gamefile";
@@ -257,7 +257,7 @@ foreach my $element (@linesf) {
 		 #when no extensions are included make sure only 1 file in zip
 		 if ($extensions eq "FALSE") {	   
 	       if (scalar @files >= 2) {
-	         print "\nMore than one file in archive.. exit\n";
+	         print "\nMore than one file in archive, specify extensions.. exit\n";
 			 print "$zipfile\n";
 	         print "\n";
 	         exit;
@@ -351,7 +351,7 @@ foreach my $element (@linesf) {
 		 #when no extensions are included make sure only 1 file in zip
 		 if ($extensions eq "FALSE") {	   
 	       if (scalar @files >= 2) {
-	         print "\nMore than one file in archive.. exit\n";
+	         print "\nMore than one file in archive, specify extensions.. exit\n";
 			 print "$zipfile\n";
 	         print "\n";
 	         exit;
