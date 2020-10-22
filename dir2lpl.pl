@@ -244,7 +244,7 @@ foreach my $element (@linesf) {
 
 	
   #zip name and rom files inside zip
-  } elsif ($listname eq "ZIP" and substr($gamefile, -4) eq '.zip') {
+  } elsif ($listname eq "ZIP" and lc substr($gamefile, -4) eq '.zip') {
 	   $zipfile = "$gamepath" . '/' . "$gamefile";
 	   #print "$zipfile\n";
        my $zip = Archive::Zip->new();
@@ -338,7 +338,7 @@ foreach my $element (@linesf) {
 	   
 	   
   #rom name and rom files inside zip
-  } elsif ($listname eq "ROM" and substr($gamefile, -4) eq '.zip') {
+  } elsif ($listname eq "ROM" and lc substr($gamefile, -4) eq '.zip') {
        $zipfile = "$gamepath" . '/' . "$gamefile";
 	   #print "$zipfile\n";
        my $zip = Archive::Zip->new();
